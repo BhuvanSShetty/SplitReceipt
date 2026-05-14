@@ -241,6 +241,8 @@ const parseWithGroq = async (rawText) => {
 };
 
 export const analyzeReceipt = async (req, res) => {
+  console.log('[analyze] Request received, file:', req.file?.originalname, 'size:', req.file?.size);
+
   if (!req.file) {
     return res.status(400).json({ error: 'No image uploaded.' });
   }
@@ -250,9 +252,14 @@ export const analyzeReceipt = async (req, res) => {
   }
 
   try {
+    console.log('[analyze] Preprocessing image...');
     const preprocessed = await preprocessImage(req.file.buffer);
+    console.log('[analyze] Running OCR...');
     const rawText = await runOcr(preprocessed);
+    console.log('[analyze] OCR done, text length:', rawText.length);
+    console.log('[analyze] Parsing with Groq...');
     const parsed = await parseWithGroq(rawText);
+    console.log('[analyze] Groq done');
     const receipt = buildReceiptFromParsed(parsed);
     const warnings = receipt.items.length === 0 ? ['No items detected.'] : [];
 
@@ -269,6 +276,7 @@ export const analyzeReceipt = async (req, res) => {
     await user.save();
     const savedReceipt = user.receipts[user.receipts.length - 1];
 
+    console.log('[analyze] Success, items:', receipt.items.length);
     res.json({
       receiptId: savedReceipt._id,
       receipt,
@@ -277,6 +285,7 @@ export const analyzeReceipt = async (req, res) => {
       warnings,
     });
   } catch (error) {
+    console.error('[analyze] Error:', error.message);
     res.status(500).json({ error: error.message || 'OCR parsing failed.' });
   }
 };

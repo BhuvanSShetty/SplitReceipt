@@ -228,6 +228,8 @@ function App() {
 
     setLoading(true)
     setError('')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
     try {
       const compressed = await compressImage(file)
       const formData = new FormData()
@@ -237,6 +239,7 @@ function App() {
         method: 'POST',
         credentials: 'include',
         body: formData,
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -256,8 +259,13 @@ function App() {
       setAssignments(nextAssignments)
       setStep('members')
     } catch (err) {
-      setError(err.message)
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Try a clearer or smaller photo.')
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.')
+      }
     } finally {
+      clearTimeout(timeout)
       setLoading(false)
     }
   }
