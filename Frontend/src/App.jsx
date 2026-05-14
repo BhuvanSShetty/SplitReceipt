@@ -397,6 +397,15 @@ function App() {
     setNewItem({ name: '', price: '', quantity: '1' })
   }
 
+  const handleUpdateTotals = (taxes, service) => {
+    if (!receipt) return
+    setReceipt({
+      ...receipt,
+      taxes: [{ label: 'Taxes', amount: taxes }],
+      serviceCharges: [{ label: 'Service', amount: service }],
+    })
+  }
+
   const cancelItemEdit = (itemId) => {
     setEditingItems({ ...editingItems, [itemId]: false })
   }
@@ -613,6 +622,7 @@ function App() {
                 newItem={newItem}
                 onNewItemChange={updateNewItem}
                 onAddItem={addManualItem}
+                onUpdateTotals={handleUpdateTotals}
                 currency={currency}
               />
               <ItemAssignment

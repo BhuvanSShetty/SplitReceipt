@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
 
 function ReceiptCard({
@@ -12,8 +13,24 @@ function ReceiptCard({
   newItem,
   onNewItemChange,
   onAddItem,
+  onUpdateTotals,
   currency,
 }) {
+  const [isEditingTotals, setIsEditingTotals] = useState(false)
+  const [editedTaxes, setEditedTaxes] = useState(0)
+  const [editedService, setEditedService] = useState(0)
+
+  useEffect(() => {
+    if (totals) {
+      setEditedTaxes(totals.taxes)
+      setEditedService(totals.service)
+    }
+  }, [totals, isEditingTotals])
+
+  const handleSaveTotals = () => {
+    onUpdateTotals(Number(editedTaxes) || 0, Number(editedService) || 0)
+    setIsEditingTotals(false)
+  }
   return (
     <section className="panel receipt">
       <div className="panel-header">
@@ -113,14 +130,48 @@ function ReceiptCard({
               <span>Items</span>
               <strong>{currency(totals.itemTotal)}</strong>
             </div>
-            <div>
-              <span>GST / Taxes</span>
-              <strong>{currency(totals.taxes)}</strong>
-            </div>
-            <div>
-              <span>Service</span>
-              <strong>{currency(totals.service)}</strong>
-            </div>
+            {isEditingTotals ? (
+              <>
+                <div>
+                  <span>GST / Taxes</span>
+                  <input
+                    type="number"
+                    value={editedTaxes}
+                    onChange={(e) => setEditedTaxes(e.target.value)}
+                    style={{ width: '100px', textAlign: 'right', background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--white)' }}
+                  />
+                </div>
+                <div>
+                  <span>Service</span>
+                  <input
+                    type="number"
+                    value={editedService}
+                    onChange={(e) => setEditedService(e.target.value)}
+                    style={{ width: '100px', textAlign: 'right', background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--white)' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                  <button type="button" className="ghost" onClick={handleSaveTotals} style={{ padding: '4px 8px', fontSize: '0.8rem' }}>Save</button>
+                  <button type="button" className="ghost" onClick={() => setIsEditingTotals(false)} style={{ padding: '4px 8px', fontSize: '0.8rem' }}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span>GST / Taxes</span>
+                  <strong>{currency(totals.taxes)}</strong>
+                </div>
+                <div>
+                  <span>Service</span>
+                  <strong>{currency(totals.service)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="ghost" onClick={() => setIsEditingTotals(true)} style={{ padding: '4px 8px', fontSize: '0.8rem' }}>
+                    Edit Taxes/Service
+                  </button>
+                </div>
+              </>
+            )}
             <div className="grand">
               <span>Total</span>
               <strong>{currency(totals.grand)}</strong>
@@ -162,6 +213,7 @@ ReceiptCard.propTypes = {
   }).isRequired,
   onNewItemChange: PropTypes.func.isRequired,
   onAddItem: PropTypes.func.isRequired,
+  onUpdateTotals: PropTypes.func.isRequired,
   currency: PropTypes.func.isRequired,
 }
 
