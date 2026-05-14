@@ -220,7 +220,7 @@ SplitReceipt/
 
 ### Authentication
 - **Email + Password Registration** — Secure account creation with bcrypt hashing
-- **Login with JWT** — Session managed via HTTP-only cookies
+- **Login with JWT** — Session managed via HTTP-only cookies & Bearer tokens (fixes mobile 3rd-party cookie issues)
 - **Persistent Sessions** — Auto-restore session on page reload
 
 ### Receipt Processing
@@ -228,10 +228,11 @@ SplitReceipt/
 - **OCR Extraction** — Sharp preprocessing + OCR.Space for accurate text recognition
 - **AI Parsing** — Groq LLaMA 3.1 converts raw text into structured items, taxes, and totals
 - **Manual Editing** — Fix incorrect items, adjust prices, or add missing entries
+- **Editable Totals** — Manually correct extracted taxes and service charges if they were read incorrectly
 
 ### Bill Splitting
 - **Add Group Members** — Add people who shared the meal
-- **Per-Item Assignment** — Assign each item to the person who ordered it
+- **Per-Quantity Assignment** — Assign specific quantities of an item to each person (e.g., if 2 items were ordered, assign 1 to Person A and 1 to Person B)
 - **Proportional Tax Split** — Taxes and service charges divided fairly based on each person's subtotal
 - **Final Summary** — Clear breakdown of who owes what
 
