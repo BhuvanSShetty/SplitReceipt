@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="SplitReceipt Logo" width="400" />
+</p>
+
 # SplitReceipt — Receipt OCR + Smart Bill Splitter
 
 <p align="center">
