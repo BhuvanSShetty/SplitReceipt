@@ -1,85 +1,140 @@
 <p align="center">
-  <img src="assets/logo.png" alt="SplitReceipt" width="180" />
+  <img src="assets/logo.png" alt="SplitReceipt Logo" width="180" />
 </p>
 
-<h1 align="center">SplitReceipt</h1>
+<h1 align="center">SplitReceipt — Receipt OCR + Smart Bill Splitter</h1>
 
 <p align="center">
-  <b>AI-Powered Receipt Scanner & Smart Bill Splitter</b>
-</p>
-
-<p align="center">
-  Snap a photo of any restaurant bill — let AI extract every item, tax, and charge.<br/>
-  Assign items to friends and get a fair split in seconds.
+  <strong>Upload a restaurant bill, extract items with OCR + AI, assign people, and split totals with taxes and service charges — automatically.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white" alt="Express" />
-  <img src="https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React" />
-  <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white" alt="MongoDB" />
-  <img src="https://img.shields.io/badge/Groq_AI-F55036?style=flat-square&logo=probot&logoColor=white" alt="Groq" />
+  <img src="https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?style=for-the-badge&logo=node.js&logoColor=white" />
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/Database-MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white" />
+  <img src="https://img.shields.io/badge/AI-Groq%20LLaMA%203.1-F55036?style=for-the-badge&logo=probot&logoColor=white" />
 </p>
 
-<br/>
+---
 
-## 🎯 The Problem
+## Table of Contents
 
-Splitting a restaurant bill shouldn't be a headache.
+1. [Problem Statement](#problem-statement)
+2. [Our Solution](#our-solution)
+3. [System Architecture](#system-architecture)
+4. [OCR + AI Pipeline](#ocr--ai-pipeline)
+5. [Tech Stack](#tech-stack)
+6. [Project Structure](#project-structure)
+7. [Features](#features)
+8. [API Reference](#api-reference)
+9. [Getting Started](#getting-started)
+10. [Environment Variables](#environment-variables)
 
-> **Long item lists** · **Hidden taxes & service charges** · **Everyone ordered different things** · **Manual math = mistakes**
+---
 
-SplitReceipt fixes all of this — automatically.
+## Problem Statement
 
-<br/>
+Splitting restaurant bills is painful when:
 
-## ✨ Features
+- **Long item lists** — Receipts with 10+ items are hard to parse manually
+- **Hidden charges** — Taxes, service charges, and GST are unclear or buried in fine print
+- **Everyone ordered differently** — Fair splitting requires per-item assignment, not equal division
+- **Manual math = mistakes** — Calculator-based splitting leads to errors and arguments
 
-| | Feature | Description |
-|---|---|---|
-| 📸 | **Receipt OCR** | Upload a photo → AI extracts every line item |
-| 🧠 | **Smart Parsing** | Groq AI structures raw text into items, prices, taxes |
-| ✏️ | **Manual Editing** | Fix or add items before splitting |
-| 👥 | **Assign Items** | Drag items to each person who ordered them |
-| 💰 | **Fair Split** | Taxes & service charges divided proportionally |
-| 🔐 | **Auth & History** | JWT login — save and revisit past receipts |
+> **Result:** Wasted time, wrong amounts, and awkward conversations at every group meal.
 
-<br/>
+---
 
-## 🏗️ Architecture
+## Our Solution
+
+**SplitReceipt** automates the entire flow — from scanning to splitting:
+
+| Step | What Happens |
+|------|-------------|
+| **Upload** | Take a photo of any restaurant receipt and upload it |
+| **OCR Scan** | Image is preprocessed with Sharp, then sent to OCR.Space for text extraction |
+| **AI Parse** | Raw OCR text is cleaned with regex, then Groq AI (LLaMA 3.1) extracts structured JSON — items, prices, taxes, totals |
+| **Edit** | Review extracted items, fix any errors, or add missing items manually |
+| **Assign** | Add group members and assign each item to whoever ordered it |
+| **Split** | Taxes and service charges are divided proportionally — see exactly who owes what |
+
+---
+
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    Frontend                         │
+│                    FRONTEND                         │
 │              React + Vite (Port 5173)               │
 │                                                     │
-│   Upload UI  →  Item Editor  →  Split Dashboard     │
+│   Upload UI  ──  Item Editor  ──  Split Dashboard   │
 └──────────────────────┬──────────────────────────────┘
                        │ REST API
                        ▼
 ┌─────────────────────────────────────────────────────┐
-│                    Backend                          │
+│                    BACKEND                          │
 │            Node.js + Express (Port 5050)            │
 │                                                     │
-│   ┌──────────┐  ┌──────────┐  ┌────────────────┐   │
-│   │ Auth     │  │ OCR +    │  │ Split          │   │
-│   │ (JWT)    │  │ AI Parse │  │ Engine         │   │
-│   └──────────┘  └────┬─────┘  └────────────────┘   │
-│                      │                              │
-│          ┌───────────┼───────────┐                  │
-│          ▼           ▼           ▼                  │
-│     OCR.Space    Groq AI     MongoDB               │
-│     (Scan)      (Parse)     (Store)                │
+│   ┌──────────┐  ┌──────────────┐  ┌──────────────┐ │
+│   │   Auth   │  │  OCR + AI    │  │    Split     │ │
+│   │  (JWT)   │  │   Pipeline   │  │   Engine     │ │
+│   └──────────┘  └──────┬───────┘  └──────────────┘ │
+│                        │                            │
+│            ┌───────────┼───────────┐                │
+│            ▼           ▼           ▼                │
+│       OCR.Space    Groq AI     MongoDB              │
+│       (Scan)      (Parse)     (Store)               │
 └─────────────────────────────────────────────────────┘
 ```
 
-<br/>
+---
 
-## 🔬 OCR + AI Pipeline
+## OCR + AI Pipeline
+
+### Step 1: Image Preprocessing
+
+The uploaded receipt image is processed with **Sharp** before OCR to maximize extraction accuracy:
+
+| Operation | Purpose |
+|-----------|---------|
+| Grayscale | Remove color noise |
+| Normalize | Equalize brightness/contrast |
+| Sharpen | Enhance text edges |
+| Threshold | Convert to high-contrast binary |
+
+### Step 2: Text Extraction (OCR.Space)
+
+The preprocessed image is sent to the OCR.Space API, which returns raw text — typically noisy, with formatting artifacts and inconsistent spacing.
+
+### Step 3: Regex Cleanup
+
+Before AI parsing, the raw text is cleaned with regex-based heuristics:
+
+- Remove duplicate whitespace and line noise
+- Normalize currency symbols and decimal formats
+- Apply domain-specific hints (common receipt patterns)
+
+### Step 4: AI Structuring (Groq — LLaMA 3.1 8B)
+
+The cleaned text is sent to Groq's LLaMA 3.1 model, which extracts a structured JSON object:
+
+```json
+{
+  "items": [
+    { "name": "Margherita Pizza", "quantity": 1, "price": 350 },
+    { "name": "Cold Coffee", "quantity": 2, "price": 180 }
+  ],
+  "subtotal": 530,
+  "tax": 26.50,
+  "serviceCharge": 53.00,
+  "total": 609.50
+}
+```
+
+### Full Pipeline Flow
 
 ```
-  📷 Receipt Photo
+  Receipt Photo
        │
        ▼
   ┌─────────────────────────┐
@@ -103,103 +158,125 @@ SplitReceipt fixes all of this — automatically.
   │  Raw Text → JSON        │
   └───────────┬─────────────┘
               ▼
-  📋 Structured Receipt
-     { items, taxes, total }
+  Structured Receipt
+  { items, taxes, total }
 ```
 
-<br/>
+---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-<table>
-  <tr>
-    <th align="left">Layer</th>
-    <th align="left">Technology</th>
-  </tr>
-  <tr>
-    <td><b>Frontend</b></td>
-    <td>React 18 · Vite · PropTypes</td>
-  </tr>
-  <tr>
-    <td><b>Backend</b></td>
-    <td>Node.js · Express · JWT · HTTP-only Cookies</td>
-  </tr>
-  <tr>
-    <td><b>Database</b></td>
-    <td>MongoDB Atlas · Mongoose ODM</td>
-  </tr>
-  <tr>
-    <td><b>OCR</b></td>
-    <td>OCR.Space API · Sharp (image preprocessing)</td>
-  </tr>
-  <tr>
-    <td><b>AI</b></td>
-    <td>Groq API · LLaMA 3.1 8B</td>
-  </tr>
-</table>
+### Backend
 
-<br/>
+| Technology | Purpose |
+|------------|---------|
+| **Node.js 18** | Runtime |
+| **Express** | REST API framework |
+| **MongoDB + Mongoose** | Document database for users and receipts |
+| **Sharp** | Image preprocessing before OCR |
+| **OCR.Space API** | Optical character recognition |
+| **Groq API (LLaMA 3.1)** | AI-powered text-to-JSON parsing |
+| **jsonwebtoken** | JWT-based authentication |
+| **bcryptjs** | Password hashing |
+| **HTTP-only Cookies** | Secure session management |
 
-## 📁 Project Structure
+### Frontend
+
+| Technology | Purpose |
+|------------|---------|
+| **React 18** | UI framework |
+| **Vite** | Build tool and dev server |
+| **PropTypes** | Runtime type checking |
+
+---
+
+## Project Structure
 
 ```
 SplitReceipt/
+├── README.md
+├── assets/
+│   └── logo.png                # Project logo
+│
 ├── Backend/
-│   ├── config/           # DB connection, env config
-│   ├── controllers/      # Route handlers
-│   ├── middleware/        # Auth middleware
-│   ├── models/           # Mongoose schemas
-│   ├── routes/           # API route definitions
-│   ├── services/         # OCR, AI, split logic
-│   └── server.js         # Entry point
+│   ├── config/                 # Database connection, env config
+│   ├── controllers/            # Route handlers (auth, receipt, split)
+│   ├── middleware/              # JWT authentication guard
+│   ├── models/                 # Mongoose schemas (User, Receipt)
+│   ├── routes/                 # API route definitions
+│   ├── services/               # OCR, AI parsing, split logic
+│   └── server.js               # Express entry point
 │
-├── Frontend/
-│   └── src/
-│       ├── components/   # React UI components
-│       ├── App.jsx       # Root component
-│       └── main.jsx      # Vite entry
-│
-└── assets/               # Logo & static assets
+└── Frontend/
+    └── src/
+        ├── components/         # React UI components
+        ├── App.jsx             # Root component
+        └── main.jsx            # Vite entry point
 ```
 
-<br/>
+---
 
-## 📡 API Reference
+## Features
 
-### Auth
+### Authentication
+- **Email + Password Registration** — Secure account creation with bcrypt hashing
+- **Login with JWT** — Session managed via HTTP-only cookies
+- **Persistent Sessions** — Auto-restore session on page reload
 
-| Method | Endpoint | Description |
-|:------:|----------|-------------|
-| `POST` | `/api/auth/register` | Create a new account |
-| `POST` | `/api/auth/login` | Login & get session cookie |
-| `POST` | `/api/auth/logout` | Clear session |
-| `GET` | `/api/auth/me` | Get current user |
+### Receipt Processing
+- **Photo Upload** — Upload any receipt image (JPG, PNG)
+- **OCR Extraction** — Sharp preprocessing + OCR.Space for accurate text recognition
+- **AI Parsing** — Groq LLaMA 3.1 converts raw text into structured items, taxes, and totals
+- **Manual Editing** — Fix incorrect items, adjust prices, or add missing entries
 
-### Receipts *(Auth required)*
+### Bill Splitting
+- **Add Group Members** — Add people who shared the meal
+- **Per-Item Assignment** — Assign each item to the person who ordered it
+- **Proportional Tax Split** — Taxes and service charges divided fairly based on each person's subtotal
+- **Final Summary** — Clear breakdown of who owes what
 
-| Method | Endpoint | Description |
-|:------:|----------|-------------|
-| `POST` | `/api/receipt/analyze` | Upload image → OCR + AI parse → save |
-| `POST` | `/api/receipt/split` | Compute per-person totals |
+### Data Persistence
+- **Save Receipts** — All parsed receipts stored per user in MongoDB
+- **Receipt History** — Revisit and review past splits
 
-<br/>
+---
 
-## 🚀 Getting Started
+## API Reference
+
+### Authentication
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/auth/register` | Public | Create a new account |
+| `POST` | `/api/auth/login` | Public | Login and receive session cookie |
+| `POST` | `/api/auth/logout` | Public | Clear session cookie |
+| `GET` | `/api/auth/me` | Cookie | Get current authenticated user |
+
+### Receipts (Authentication Required)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/receipt/analyze` | Cookie | Upload image → OCR + AI parse → save to database |
+| `POST` | `/api/receipt/split` | Cookie | Compute per-person totals with tax distribution |
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **MongoDB** (local or [Atlas](https://www.mongodb.com/atlas))
-- API keys for [OCR.Space](https://ocr.space/ocrapi), [Groq](https://console.groq.com/)
+- **Node.js** 18+
+- **MongoDB** (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
+- API keys for [OCR.Space](https://ocr.space/ocrapi) and [Groq](https://console.groq.com/)
 
-### 1. Clone the repo
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/BhuvanSShetty/SplitReceipt.git
 cd SplitReceipt
 ```
 
-### 2. Backend setup
+### 2. Backend Setup
 
 ```bash
 cd Backend
@@ -225,7 +302,7 @@ FRONTEND_ORIGIN=http://localhost:5173
 npm run dev
 ```
 
-### 3. Frontend setup
+### 3. Frontend Setup
 
 ```bash
 cd Frontend
@@ -242,45 +319,37 @@ VITE_API_URL=http://localhost:5050
 npm run dev
 ```
 
-### 4. Open the app
+### 4. Open the App
 
-Visit **[http://localhost:5173](http://localhost:5173)** 🎉
+Visit **http://localhost:5173** in your browser.
 
-<br/>
+---
 
-## 🔑 Environment Variables
+## Environment Variables
 
-<details>
-<summary><b>Backend (.env)</b></summary>
+### Backend (.env)
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: `5050`) |
-| `MONGOURL` | MongoDB connection string |
-| `GROQ_API_KEY` | Groq API key |
-| `GROQ_MODEL` | Model name (default: `llama-3.1-8b-instant`) |
-| `GROQ_BASE_URL` | Groq base URL |
-| `OCR_SPACE_API_KEY` | OCR.Space API key |
-| `OCR_LANGUAGE` | OCR language code |
-| `OCR_SPACE_ENDPOINT` | OCR.Space endpoint URL |
-| `JWT_SECRET` | JWT signing secret |
-| `FRONTEND_ORIGIN` | Frontend URL for CORS |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5050` | Backend server port |
+| `MONGOURL` | — | MongoDB connection string |
+| `GROQ_API_KEY` | — | Groq API key for AI parsing |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` | Groq model name |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | Groq API base URL |
+| `OCR_SPACE_API_KEY` | — | OCR.Space API key |
+| `OCR_LANGUAGE` | `eng` | OCR language code |
+| `OCR_SPACE_ENDPOINT` | `https://api.ocr.space/parse/image` | OCR.Space endpoint URL |
+| `JWT_SECRET` | — | Secret key for JWT signing |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | Frontend URL for CORS |
 
-</details>
+### Frontend (.env)
 
-<details>
-<summary><b>Frontend (.env)</b></summary>
-
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_URL` | Backend API base URL |
-
-</details>
-
-<br/>
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_URL` | `http://localhost:5050` | Backend API base URL |
 
 ---
 
 <p align="center">
-  Built with ☕ by <a href="https://github.com/BhuvanSShetty">Bhuvan S Shetty</a>
+  Built by <a href="https://github.com/BhuvanSShetty">Bhuvan S Shetty</a>
 </p>
