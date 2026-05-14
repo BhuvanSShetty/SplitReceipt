@@ -25,10 +25,11 @@
 4. [OCR + AI Pipeline](#ocr--ai-pipeline)
 5. [Tech Stack](#tech-stack)
 6. [Project Structure](#project-structure)
-7. [Features](#features)
-8. [API Reference](#api-reference)
-9. [Getting Started](#getting-started)
-10. [Environment Variables](#environment-variables)
+7. [Database Schema](#database-schema)
+8. [Features](#features)
+9. [API Reference](#api-reference)
+10. [Getting Started](#getting-started)
+11. [Environment Variables](#environment-variables)
 
 ---
 
@@ -212,6 +213,59 @@ SplitReceipt/
         ├── components/         # React UI components
         ├── App.jsx             # Root component
         └── main.jsx            # Vite entry point
+```
+
+---
+
+## Database Schema
+
+The application uses MongoDB with Mongoose. Receipts are stored as embedded subdocuments within the User document.
+
+```mermaid
+erDiagram
+    users {
+        ObjectId id PK
+        string name
+        string email
+        string passwordHash
+        array members
+        array receipts
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    receipts {
+        ObjectId id PK
+        string source
+        string currency
+        array items
+        number subtotal
+        number total
+        string rawText
+        mixed parsed
+        array warnings
+        array taxes
+        timestamp createdAt
+        timestamp updatedAt
+        array serviceCharges
+    }
+    receipt_items {
+        string name
+        number price
+        number quantity
+    }
+    receipt_taxes {
+        string label
+        number amount
+    }
+    service_charges {
+        string label
+        number amount
+    }
+
+    users ||--o{ receipts : "1:N"
+    receipts ||--o{ receipt_items : "1:N"
+    receipts ||--o{ receipt_taxes : "1:N"
+    receipts ||--o{ service_charges : "1:N"
 ```
 
 ---
