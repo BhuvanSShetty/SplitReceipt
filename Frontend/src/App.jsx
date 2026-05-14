@@ -199,6 +199,27 @@ function App() {
     setStep('landing')
   }
 
+  // Compress image on the client to avoid timeout on free-tier hosting
+  const compressImage = (imageFile, maxWidth = 1200, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const scale = Math.min(1, maxWidth / img.width)
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob(
+          (blob) => resolve(new File([blob], imageFile.name, { type: 'image/jpeg' })),
+          'image/jpeg',
+          quality
+        )
+      }
+      img.src = URL.createObjectURL(imageFile)
+    })
+  }
+
   const handleAnalyze = async () => {
     if (!file) {
       setError('Upload a receipt photo to continue.')
@@ -208,8 +229,9 @@ function App() {
     setLoading(true)
     setError('')
     try {
+      const compressed = await compressImage(file)
       const formData = new FormData()
-      formData.append('image', file)
+      formData.append('image', compressed)
 
       const response = await fetch(`${API_BASE}/api/receipt/analyze`, {
         method: 'POST',
