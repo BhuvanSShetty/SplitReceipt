@@ -52,7 +52,7 @@ export const registerUser = async (req, res) => {
 
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
   setAuthCookie(res, token);
-  return res.json({ user: buildUserResponse(user) });
+  return res.json({ token, user: buildUserResponse(user) });
 };
 
 export const loginUser = async (req, res) => {
@@ -73,7 +73,7 @@ export const loginUser = async (req, res) => {
 
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
   setAuthCookie(res, token);
-  return res.json({ user: buildUserResponse(user) });
+  return res.json({ token, user: buildUserResponse(user) });
 };
 
 export const logoutUser = (req, res) => {

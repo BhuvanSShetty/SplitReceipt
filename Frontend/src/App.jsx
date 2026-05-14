@@ -11,6 +11,16 @@ import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5050'
 
+// Helper: attach Bearer token to all API requests
+const authFetch = (url, options = {}) => {
+  const token = localStorage.getItem('auth_token')
+  const headers = { ...(options.headers || {}) }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return fetch(url, { ...options, headers, credentials: 'include' })
+}
+
 const currency = (value) => {
   const amount = Number(value) || 0
   return `INR ${amount.toFixed(2)}`
@@ -93,6 +103,7 @@ function App() {
       if (!response.ok) {
         throw new Error(payload.error || 'Login failed.')
       }
+      if (payload.token) localStorage.setItem('auth_token', payload.token)
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
       setLoginForm({ email: '', password: '' })
@@ -125,6 +136,7 @@ function App() {
       if (!response.ok) {
         throw new Error(payload.error || 'Registration failed.')
       }
+      if (payload.token) localStorage.setItem('auth_token', payload.token)
       setRegisterForm({ name: '', email: '', password: '', members: '' })
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
@@ -138,9 +150,7 @@ function App() {
   const fetchSession = async () => {
     setAuthLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/auth/me`, {
-        credentials: 'include',
-      })
+      const response = await authFetch(`${API_BASE}/api/auth/me`)
       if (!response.ok) {
         setIsAuthenticated(false)
         return
@@ -171,13 +181,11 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      await authFetch(`${API_BASE}/api/auth/logout`, { method: 'POST' })
     } catch (err) {
       // best effort
     }
+    localStorage.removeItem('auth_token')
     setIsAuthenticated(false)
     setCurrentUser(null)
     setPeople([])
@@ -235,16 +243,15 @@ function App() {
       const formData = new FormData()
       formData.append('image', compressed)
 
-      const response = await fetch(`${API_BASE}/api/receipt/analyze`, {
+      const response = await authFetch(`${API_BASE}/api/receipt/analyze`, {
         method: 'POST',
-        credentials: 'include',
         body: formData,
         signal: controller.signal,
       })
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}))
-        throw new Error(errBody.error || 'Receipt analysis failed.')
+        throw new Error(errBody.error || `Analysis failed (HTTP ${response.status})`)
       }
 
       const payload = await response.json()
@@ -384,10 +391,9 @@ function App() {
     setLoading(true)
     setError('')
     try {
-      const response = await fetch(`${API_BASE}/api/receipt/split`, {
+      const response = await authFetch(`${API_BASE}/api/receipt/split`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           receipt,
           people,

@@ -6,7 +6,15 @@ const COOKIE_NAME = 'auth_token';
 
 export const requireAuth = async (req, res, next) => {
   try {
-    const token = req.cookies?.[COOKIE_NAME];
+    // Try Bearer token first (works on mobile), then fall back to cookie
+    let token = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    } else {
+      token = req.cookies?.[COOKIE_NAME];
+    }
+
     if (!token) {
       return res.status(401).json({ error: 'Not authenticated.' });
     }
