@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --card: #111111;
+  --input-bg: #161616;
+  --white: #ffffff;
+  --grey-1: #e5e5e5;
+  --grey-2: #a0a0a0;
+  --grey-3: #666666;
+  --grey-4: #333333;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --radius: 12px;
+  --radius-lg: 20px;
+  --pill: 999px;
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--white);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100svh;
+  position: relative;
+}
+
+.particle-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  color: var(--white);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+h1 {
+  font-size: clamp(3rem, 6vw, 5rem);
+  line-height: 1.0;
+  font-weight: 800;
+}
+
+h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1.15; }
+h3 { font-size: 1.05rem; }
+
+p { margin: 0; color: var(--grey-2); }
+
+button, input { font: inherit; }
+a { text-decoration: none; color: inherit; }
+
+::selection {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--grey-4); border-radius: 2px; }
