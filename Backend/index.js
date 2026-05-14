@@ -9,10 +9,20 @@ import { connectDB } from "./config/mongo.js";
 
 const port = process.env.PORT || 4000;
 const app = express();
-const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+// Support comma-separated origins: "https://split.bhuvans.in,https://split-receipt-delta.vercel.app"
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+    .split(",")
+    .map(o => o.trim().replace(/\/+$/, "")); // strip trailing slashes
 
 app.use(cors({
-    origin: frontendOrigin,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (curl, mobile apps, etc.)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, origin || allowedOrigins[0]);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
     credentials: true,
 }));
 app.use(cookieParser());
