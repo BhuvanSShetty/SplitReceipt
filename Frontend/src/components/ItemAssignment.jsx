@@ -4,7 +4,7 @@ function ItemAssignment({
   receipt,
   people,
   assignments,
-  onToggleAssignment,
+  onSetQuantity,
   onAssignEveryone,
   onClearAssignments,
   onSplit,
@@ -26,36 +26,89 @@ function ItemAssignment({
         </div>
       ) : (
         <div className="assignments">
-          {receipt.items.map((item) => (
-            <div className="assignment" key={item.id}>
-              <div className="assignment-header">
-                <div>
-                  <p className="item-name">{item.name}</p>
-                  <p className="item-meta">{currency(item.price)}</p>
+          {receipt.items.map((item) => {
+            const itemAssignment = assignments[item.id] || {}
+            const totalAssigned = Object.values(itemAssignment).reduce((s, v) => s + v, 0)
+            const qty = item.quantity || 1
+
+            return (
+              <div className="assignment" key={item.id}>
+                <div className="assignment-header">
+                  <div>
+                    <p className="item-name">
+                      {item.name}
+                      {qty > 1 && <span className="qty-badge"> ×{qty}</span>}
+                    </p>
+                    <p className="item-meta">
+                      {currency(item.price)}
+                      {qty > 1 && (
+                        <span className="unit-price"> ({currency(item.price / qty)} each)</span>
+                      )}
+                    </p>
+                    {qty > 1 && totalAssigned > 0 && (
+                      <p className="qty-status" style={{ fontSize: '0.75rem', color: totalAssigned === qty ? 'var(--green, #22c55e)' : 'var(--amber, #f59e0b)', marginTop: '2px' }}>
+                        {totalAssigned}/{qty} assigned
+                      </p>
+                    )}
+                  </div>
+                  <div className="assignment-actions">
+                    <button type="button" onClick={() => onAssignEveryone(item.id)}>
+                      Everyone
+                    </button>
+                    <button type="button" onClick={() => onClearAssignments(item.id)}>
+                      Clear
+                    </button>
+                  </div>
                 </div>
-                <div className="assignment-actions">
-                  <button type="button" onClick={() => onAssignEveryone(item.id)}>
-                    Everyone
-                  </button>
-                  <button type="button" onClick={() => onClearAssignments(item.id)}>
-                    Clear
-                  </button>
+                <div className="checkbox-row">
+                  {people.map((name) => {
+                    const personQty = itemAssignment[name] || 0
+
+                    if (qty <= 1) {
+                      // Simple checkbox for single-quantity items
+                      return (
+                        <label key={name} className="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={personQty > 0}
+                            onChange={() => onSetQuantity(item.id, name, personQty > 0 ? 0 : 1)}
+                          />
+                          <span>{name}</span>
+                        </label>
+                      )
+                    }
+
+                    // Quantity selector for multi-quantity items
+                    const maxCanAssign = qty - totalAssigned + personQty
+                    return (
+                      <div key={name} className="qty-assign">
+                        <span className="qty-assign-name">{name}</span>
+                        <div className="qty-controls">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            disabled={personQty <= 0}
+                            onClick={() => onSetQuantity(item.id, name, personQty - 1)}
+                          >
+                            −
+                          </button>
+                          <span className="qty-value">{personQty}</span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            disabled={personQty >= maxCanAssign}
+                            onClick={() => onSetQuantity(item.id, name, personQty + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-              <div className="checkbox-row">
-                {people.map((name) => (
-                  <label key={name} className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={(assignments[item.id] || []).includes(name)}
-                      onChange={() => onToggleAssignment(item.id, name)}
-                    />
-                    <span>{name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
       <div className="step-actions">
@@ -91,12 +144,13 @@ ItemAssignment.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         price: PropTypes.number.isRequired,
+        quantity: PropTypes.number,
       })
     ),
   }),
   people: PropTypes.arrayOf(PropTypes.string).isRequired,
   assignments: PropTypes.object.isRequired,
-  onToggleAssignment: PropTypes.func.isRequired,
+  onSetQuantity: PropTypes.func.isRequired,
   onAssignEveryone: PropTypes.func.isRequired,
   onClearAssignments: PropTypes.func.isRequired,
   onSplit: PropTypes.func.isRequired,

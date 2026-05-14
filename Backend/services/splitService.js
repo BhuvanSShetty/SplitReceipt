@@ -29,21 +29,25 @@ export const computeSplit = ({ receipt, people, assignments }) => {
   const unassignedItems = [];
 
   receiptItems.forEach((item) => {
-    const assignedTo = Array.isArray(assignmentMap[item.id])
-      ? assignmentMap[item.id]
-      : [];
-    const validAssignees = assignedTo.filter((name) => personIndex.has(name));
+    const itemAssignment = assignmentMap[item.id] || {};
+    const validAssignees = Object.entries(itemAssignment).filter(
+      ([name, qty]) => personIndex.has(name) && qty > 0
+    );
 
     if (validAssignees.length === 0) {
       unassignedItems.push({ id: item.id, name: item.name, amount: item.price });
       return;
     }
 
-    const share = (Number(item.price) || 0) / validAssignees.length;
+    const totalAssignedQty = validAssignees.reduce((sum, [, qty]) => sum + qty, 0);
+    const itemPrice = Number(item.price) || 0;
 
-    validAssignees.forEach((name) => {
+    validAssignees.forEach(([name, qty]) => {
       const index = personIndex.get(name);
       if (index === undefined) return;
+      
+      const share = (itemPrice * qty) / totalAssignedQty;
+
       perPerson[index].itemShares.push({
         itemId: item.id,
         itemName: item.name,

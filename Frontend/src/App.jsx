@@ -261,7 +261,7 @@ function App() {
 
       const nextAssignments = {}
       payload.receipt.items.forEach((item) => {
-        nextAssignments[item.id] = []
+        nextAssignments[item.id] = {}
       })
       setAssignments(nextAssignments)
       setStep('members')
@@ -292,28 +292,47 @@ function App() {
     setPeople(people.filter((person) => person !== name))
     const nextAssignments = { ...assignments }
     Object.keys(nextAssignments).forEach((itemId) => {
-      nextAssignments[itemId] = nextAssignments[itemId].filter(
-        (person) => person !== name
-      )
+      const current = nextAssignments[itemId] || {}
+      if (current[name]) {
+        const next = { ...current }
+        delete next[name]
+        nextAssignments[itemId] = next
+      }
     })
     setAssignments(nextAssignments)
   }
 
-  const toggleAssignment = (itemId, name) => {
-    const current = assignments[itemId] || []
-    const exists = current.includes(name)
-    const next = exists
-      ? current.filter((person) => person !== name)
-      : [...current, name]
+  const setQuantity = (itemId, name, qty) => {
+    const current = assignments[itemId] || {}
+    const next = { ...current }
+    if (qty <= 0) {
+      delete next[name]
+    } else {
+      next[name] = qty
+    }
     setAssignments({ ...assignments, [itemId]: next })
   }
 
   const assignEveryone = (itemId) => {
-    setAssignments({ ...assignments, [itemId]: [...people] })
+    const item = receipt.items.find((i) => i.id === itemId)
+    const qty = item?.quantity || 1
+    const next = {}
+    if (qty <= 1) {
+      people.forEach((p) => {
+        next[p] = 1
+      })
+    } else {
+      people.forEach((p, index) => {
+        if (index < qty) {
+          next[p] = 1
+        }
+      })
+    }
+    setAssignments({ ...assignments, [itemId]: next })
   }
 
   const clearAssignments = (itemId) => {
-    setAssignments({ ...assignments, [itemId]: [] })
+    setAssignments({ ...assignments, [itemId]: {} })
   }
 
   const startEditItem = (item) => {
@@ -374,7 +393,7 @@ function App() {
       },
     ]
     setReceipt({ ...receipt, items: updatedItems })
-    setAssignments({ ...assignments, [itemId]: [] })
+    setAssignments({ ...assignments, [itemId]: {} })
     setNewItem({ name: '', price: '', quantity: '1' })
   }
 
@@ -419,7 +438,11 @@ function App() {
     if (!receipt || people.length === 0) return
     const nextAssignments = {}
     receipt.items.forEach((item) => {
-      nextAssignments[item.id] = [...people]
+      const current = {}
+      people.forEach((p) => {
+        current[p] = 1
+      })
+      nextAssignments[item.id] = current
     })
     setAssignments(nextAssignments)
     await handleSplit(nextAssignments)
@@ -596,7 +619,7 @@ function App() {
                 receipt={receipt}
                 people={people}
                 assignments={assignments}
-                onToggleAssignment={toggleAssignment}
+                onSetQuantity={setQuantity}
                 onAssignEveryone={assignEveryone}
                 onClearAssignments={clearAssignments}
                 onSplit={handleSplit}

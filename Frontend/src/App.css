@@ -407,6 +407,28 @@
 }
 .checkbox input { accent-color: var(--white); }
 
+/* Quantity Controls */
+.qty-assign {
+  display: inline-flex; align-items: center; gap: 12px;
+  border: 1px solid var(--border); border-radius: var(--pill);
+  padding: 4px 12px; background: var(--card); color: var(--grey-2);
+  font-size: 0.85rem;
+}
+.qty-assign-name { font-weight: 500; }
+.qty-controls { display: flex; align-items: center; gap: 8px; }
+.qty-btn {
+  background: transparent; border: none; color: var(--grey-2);
+  cursor: pointer; font-size: 1rem; font-weight: 600;
+  width: 20px; height: 20px; display: flex; align-items: center;
+  justify-content: center; padding: 0;
+  transition: color 0.2s;
+}
+.qty-btn:hover:not(:disabled) { color: var(--white); }
+.qty-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.qty-value { font-weight: 700; color: var(--white); min-width: 14px; text-align: center; }
+.qty-badge { font-weight: 600; color: var(--grey-3); }
+.unit-price { color: var(--grey-4); }
+
 /* ===== RESULTS ===== */
 .results-grid { display: grid; gap: 10px; }
 .result {
