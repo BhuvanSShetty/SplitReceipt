@@ -218,7 +218,8 @@ function App() {
       })
 
       if (!response.ok) {
-        throw new Error('Receipt analysis failed.')
+        const errBody = await response.json().catch(() => ({}))
+        throw new Error(errBody.error || 'Receipt analysis failed.')
       }
 
       const payload = await response.json()
