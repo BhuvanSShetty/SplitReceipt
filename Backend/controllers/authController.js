@@ -4,6 +4,7 @@ import User from '../models/User.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const COOKIE_NAME = 'auth_token';
+const isProduction = process.env.NODE_ENV === 'production';
 
 const buildUserResponse = (user) => ({
   id: user._id,
@@ -12,13 +13,15 @@ const buildUserResponse = (user) => ({
   members: user.members || [],
 });
 
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: isProduction ? 'none' : 'lax',
+  secure: isProduction,
+  maxAge: 1000 * 60 * 60 * 24 * 7,
+};
+
 const setAuthCookie = (res, token) => {
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  });
+  res.cookie(COOKIE_NAME, token, cookieOptions);
 };
 
 export const registerUser = async (req, res) => {
@@ -74,7 +77,11 @@ export const loginUser = async (req, res) => {
 };
 
 export const logoutUser = (req, res) => {
-  res.clearCookie(COOKIE_NAME);
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+  });
   res.json({ ok: true });
 };
 
