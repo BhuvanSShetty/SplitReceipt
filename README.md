@@ -63,30 +63,7 @@ Splitting restaurant bills is painful when:
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    FRONTEND                         │
-│              React + Vite (Port 5173)               │
-│                                                     │
-│   Upload UI  ──  Item Editor  ──  Split Dashboard   │
-└──────────────────────┬──────────────────────────────┘
-                       │ REST API
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│                    BACKEND                          │
-│            Node.js + Express (Port 5050)            │
-│                                                     │
-│   ┌──────────┐  ┌──────────────┐  ┌──────────────┐ │
-│   │   Auth   │  │  OCR + AI    │  │    Split     │ │
-│   │  (JWT)   │  │   Pipeline   │  │   Engine     │ │
-│   └──────────┘  └──────┬───────┘  └──────────────┘ │
-│                        │                            │
-│            ┌───────────┼───────────┐                │
-│            ▼           ▼           ▼                │
-│       OCR.Space    Groq AI     MongoDB              │
-│       (Scan)      (Parse)     (Store)               │
-└─────────────────────────────────────────────────────┘
-```
+![System Architecture](assets/image.png)
 
 ---
 
