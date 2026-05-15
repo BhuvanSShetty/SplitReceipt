@@ -12,6 +12,9 @@ erl_crash.dump
 *.ez
 *.beam
 
+
+
+
 ### Elixir Patch ###
 
 ### macOS ###

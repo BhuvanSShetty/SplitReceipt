@@ -1,0 +1,18 @@
+1. The OCR Step (The Biggest Bottleneck ⏳)
+Right now, you are using the free tier of OCR.space. This is usually the slowest part of your app (taking 2 to 5 seconds).
+
+Optimization: Switch to Google Cloud Vision API or Azure Form Recognizer. They are paid (but have generous free tiers) and are much faster and incredibly accurate with messy receipt photos.
+2. The AI Parsing Step (Groq)
+You are already using Groq, which is the fastest LLM inference engine available right now! So you are good here.
+
+Optimization: Ensure you are using a fast model like llama-3.3-70b-versatile or llama-3.1-8b-instant. The 8b model is smaller and will return results almost instantly!
+3. Database Optimizations (MongoDB)
+As your user's history grows, fetching history will slow down.
+
+Optimization: Add Indexes to your MongoDB fields that are queried often. For example, index the createdAt field in the receipts array or use a separate Receipt collection instead of embedding them all inside the User document. Embedding everything in the User document can make the document too large over time!
+4. Frontend Optimization (React)
+I noticed in the logs that you are already compressing the image before uploading (great job!).
+
+Optimization: If your ReceiptHistory list grows very large, use Virtualization (like react-window) so React only renders the receipts visible on the screen instead of all of them at once.
+5. Caching
+Optimization: You can implement Redis or a simple in-memory cache to cache the user's session data so the server doesn't have to query MongoDB on every single request just to check if the user is authenticated.
