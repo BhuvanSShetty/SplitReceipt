@@ -29,6 +29,8 @@ const receiptSchema = new mongoose.Schema(
     rawText: { type: String, default: '' },
     parsed: { type: mongoose.Schema.Types.Mixed },
     warnings: { type: [String], default: [] },
+    assignments: { type: mongoose.Schema.Types.Mixed, default: {} },
+    splitResult: { type: mongoose.Schema.Types.Mixed },
   },
   { timestamps: true }
 );
@@ -40,6 +42,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     members: { type: [String], default: [] },
     receipts: { type: [receiptSchema], default: [] },
+    refreshTokens: { type: [String], default: [] },
   },
   { timestamps: true }
 );

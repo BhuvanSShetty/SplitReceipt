@@ -7,18 +7,81 @@ import ReceiptCard from './components/ReceiptCard.jsx'
 import SplitSummary from './components/SplitSummary.jsx'
 import LandingPage from './components/LandingPage.jsx'
 import ParticleCanvas from './components/ParticleCanvas.jsx'
+import ReceiptHistory from './components/ReceiptHistory.jsx'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5050'
 
+// Helper variables to prevent multiple parallel refresh calls
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const subscribeTokenRefresh = (cb) => {
+  refreshSubscribers.push(cb);
+};
+
+const onRefreshed = (token) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
 // Helper: attach Bearer token to all API requests
-const authFetch = (url, options = {}) => {
-  const token = localStorage.getItem('auth_token')
+const authFetch = async (url, options = {}) => {
+  let token = localStorage.getItem('auth_token')
   const headers = { ...(options.headers || {}) }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
-  return fetch(url, { ...options, headers, credentials: 'include' })
+  
+  let response = await fetch(url, { ...options, headers, credentials: 'include' })
+  
+  if (response.status === 401) {
+    const refreshToken = localStorage.getItem('refresh_token')
+    if (refreshToken) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          })
+          
+          if (refreshRes.ok) {
+            const data = await refreshRes.json()
+            localStorage.setItem('auth_token', data.token)
+            localStorage.setItem('refresh_token', data.refreshToken)
+            
+            isRefreshing = false;
+            onRefreshed(data.token);
+            
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${data.token}`
+            return fetch(url, { ...options, headers, credentials: 'include' })
+          } else {
+            isRefreshing = false;
+            // Refresh failed, logout
+            localStorage.removeItem('auth_token')
+            localStorage.removeItem('refresh_token')
+            window.location.reload()
+          }
+        } catch (err) {
+          isRefreshing = false;
+          console.error('Failed to refresh token:', err)
+        }
+      } else {
+        // Wait for the current refresh to complete
+        return new Promise((resolve) => {
+          subscribeTokenRefresh((newToken) => {
+            headers['Authorization'] = `Bearer ${newToken}`;
+            resolve(fetch(url, { ...options, headers, credentials: 'include' }));
+          });
+        });
+      }
+    }
+  }
+  
+  return response
 }
 
 const currency = (value) => {
@@ -32,6 +95,7 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [preprocessedUrl, setPreprocessedUrl] = useState('')
   const [receipt, setReceipt] = useState(null)
+  const [receiptId, setReceiptId] = useState(null)
   const [warnings, setWarnings] = useState([])
   const [people, setPeople] = useState([])
   const [personInput, setPersonInput] = useState('')
@@ -90,7 +154,7 @@ function App() {
   const handleLogin = async () => {
     setAuthError('')
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -104,6 +168,7 @@ function App() {
         throw new Error(payload.error || 'Login failed.')
       }
       if (payload.token) localStorage.setItem('auth_token', payload.token)
+      if (payload.refreshToken) localStorage.setItem('refresh_token', payload.refreshToken)
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
       setLoginForm({ email: '', password: '' })
@@ -121,7 +186,7 @@ function App() {
   const handleRegister = async () => {
     setAuthError('')
     try {
-      const response = await fetch(`${API_BASE}/api/auth/register`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -137,6 +202,7 @@ function App() {
         throw new Error(payload.error || 'Registration failed.')
       }
       if (payload.token) localStorage.setItem('auth_token', payload.token)
+      if (payload.refreshToken) localStorage.setItem('refresh_token', payload.refreshToken)
       setRegisterForm({ name: '', email: '', password: '', members: '' })
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
@@ -150,7 +216,7 @@ function App() {
   const fetchSession = async () => {
     setAuthLoading(true)
     try {
-      const response = await authFetch(`${API_BASE}/api/auth/me`)
+      const response = await authFetch(`${API_BASE}/api/v1/auth/me`)
       if (!response.ok) {
         setIsAuthenticated(false)
         return
@@ -181,11 +247,17 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await authFetch(`${API_BASE}/api/auth/logout`, { method: 'POST' })
+      const refreshToken = localStorage.getItem('refresh_token')
+      await authFetch(`${API_BASE}/api/v1/auth/logout`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      })
     } catch (err) {
       // best effort
     }
     localStorage.removeItem('auth_token')
+    localStorage.removeItem('refresh_token')
     setIsAuthenticated(false)
     setCurrentUser(null)
     setPeople([])
@@ -243,7 +315,7 @@ function App() {
       const formData = new FormData()
       formData.append('image', compressed)
 
-      const response = await authFetch(`${API_BASE}/api/receipt/analyze`, {
+      const response = await authFetch(`${API_BASE}/api/v1/receipt/analyze`, {
         method: 'POST',
         body: formData,
         signal: controller.signal,
@@ -256,6 +328,7 @@ function App() {
 
       const payload = await response.json()
       setReceipt(payload.receipt)
+      setReceiptId(payload.receiptId)
       setPreprocessedUrl(payload.preprocessedImage || '')
       setWarnings(payload.warnings || [])
 
@@ -419,10 +492,11 @@ function App() {
     setLoading(true)
     setError('')
     try {
-      const response = await authFetch(`${API_BASE}/api/receipt/split`, {
+      const response = await authFetch(`${API_BASE}/api/v1/receipt/split`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          receiptId,
           receipt,
           people,
           assignments: resolvedAssignments,
@@ -533,6 +607,9 @@ function App() {
             </nav>
             <div className="topbar-right">
               <span className="topbar-user">{currentUser?.email || ''}</span>
+              <button type="button" className="ghost" onClick={() => setStep('history')}>
+                History
+              </button>
               <button type="button" className="ghost" onClick={handleLogout}>
                 Log out
               </button>
@@ -541,7 +618,10 @@ function App() {
         )}
 
         {/* Main content */}
-        <main className={`app-content ${step === 'assign' ? 'app-content--wide' : ''}`}>
+        <main className={`app-content ${step === 'assign' || step === 'history' ? 'app-content--wide' : ''}`}>
+          {step === 'history' && (
+            <ReceiptHistory API_BASE={API_BASE} authFetch={authFetch} currency={currency} />
+          )}
           {step === 'upload' && (
             <section className="panel">
               <div className="panel-header">

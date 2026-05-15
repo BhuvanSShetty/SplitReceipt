@@ -65,21 +65,21 @@ const buildReceiptFromParsed = (parsed) => {
   const extraTaxes = [];
   const items = Array.isArray(parsed?.items)
     ? parsed.items
-        .map((item, index) => ({
-          id: `item-${index + 1}`,
-          name: String(item.name || `Item ${index + 1}`).trim(),
-          price: Number(item.price ?? item.amount ?? 0) || 0,
-          quantity: Number(item.quantity ?? 1) || 1,
-        }))
-        .filter((item) => {
-          const hasLetters = /[A-Za-z]/.test(item.name);
-          const isTaxLine = /(gst|tax|vat|service)/i.test(item.name);
-          if (isTaxLine && item.price > 0) {
-            extraTaxes.push({ label: item.name, amount: item.price });
-            return false;
-          }
-          return hasLetters && item.price > 0;
-        })
+      .map((item, index) => ({
+        id: `item-${index + 1}`,
+        name: String(item.name || `Item ${index + 1}`).trim(),
+        price: Number(item.price ?? item.amount ?? 0) || 0,
+        quantity: Number(item.quantity ?? 1) || 1,
+      }))
+      .filter((item) => {
+        const hasLetters = /[A-Za-z]/.test(item.name);
+        const isTaxLine = /(gst|tax|vat|service)/i.test(item.name);
+        if (isTaxLine && item.price > 0) {
+          extraTaxes.push({ label: item.name, amount: item.price });
+          return false;
+        }
+        return hasLetters && item.price > 0;
+      })
     : [];
 
   const taxes = [...normalizeTaxes(parsed), ...extraTaxes];
@@ -241,8 +241,6 @@ const parseWithGroq = async (rawText) => {
 };
 
 export const analyzeReceipt = async (req, res) => {
-  console.log('[analyze] Request received, file:', req.file?.originalname, 'size:', req.file?.size);
-
   if (!req.file) {
     return res.status(400).json({ error: 'No image uploaded.' });
   }
@@ -252,14 +250,9 @@ export const analyzeReceipt = async (req, res) => {
   }
 
   try {
-    console.log('[analyze] Preprocessing image...');
     const preprocessed = await preprocessImage(req.file.buffer);
-    console.log('[analyze] Running OCR...');
     const rawText = await runOcr(preprocessed);
-    console.log('[analyze] OCR done, text length:', rawText.length);
-    console.log('[analyze] Parsing with Groq...');
     const parsed = await parseWithGroq(rawText);
-    console.log('[analyze] Groq done');
     const receipt = buildReceiptFromParsed(parsed);
     const warnings = receipt.items.length === 0 ? ['No items detected.'] : [];
 
@@ -276,7 +269,6 @@ export const analyzeReceipt = async (req, res) => {
     await user.save();
     const savedReceipt = user.receipts[user.receipts.length - 1];
 
-    console.log('[analyze] Success, items:', receipt.items.length);
     res.json({
       receiptId: savedReceipt._id,
       receipt,
@@ -290,13 +282,62 @@ export const analyzeReceipt = async (req, res) => {
   }
 };
 
-export const splitReceipt = (req, res) => {
-  const { receipt, people, assignments } = req.body || {};
+export const splitReceipt = async (req, res) => {
+  try {
+    const { receiptId, receipt, people, assignments } = req.body || {};
 
-  if (!receipt || !Array.isArray(people)) {
-    return res.status(400).json({ error: 'Missing receipt or people list.' });
+    if (!receipt || !Array.isArray(people)) {
+      return res.status(400).json({ error: 'Missing receipt or people list.' });
+    }
+
+    const result = computeSplit({ receipt, people, assignments });
+
+    const user = req.user;
+    if (receiptId && user) {
+      const receiptSubdoc = user.receipts.id(receiptId);
+
+      if (receiptSubdoc) {
+        receiptSubdoc.items = receipt.items;
+        receiptSubdoc.taxes = receipt.taxes;
+        receiptSubdoc.serviceCharges = receipt.serviceCharges;
+        receiptSubdoc.subtotal = receipt.subtotal;
+        receiptSubdoc.total = receipt.total;
+        receiptSubdoc.assignments = assignments;
+        receiptSubdoc.splitResult = result;
+        await user.save();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to save split history:', error);
   }
 
-  const result = computeSplit({ receipt, people, assignments });
+
   res.json(result);
+};
+
+export const getReceiptHistory = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'User not found.' });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    // Sort receipts by date (newest first)
+    const sortedReceipts = user.receipts.sort((a, b) => b.createdAt - a.createdAt);
+
+    const totalReceipts = sortedReceipts.length;
+    const paginatedReceipts = sortedReceipts.slice(skip, skip + limit);
+
+    res.json({
+      receipts: paginatedReceipts,
+      totalPages: Math.ceil(totalReceipts / limit),
+      currentPage: page
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
+const REFRESH_SECRET = process.env.REFRESH_SECRET || JWT_SECRET + '_refresh';
 const COOKIE_NAME = 'auth_token';
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -39,9 +40,9 @@ export const registerUser = async (req, res) => {
   const memberList = Array.isArray(members)
     ? members
     : String(members || '')
-        .split(',')
-        .map((member) => member.trim())
-        .filter(Boolean);
+      .split(',')
+      .map((member) => member.trim())
+      .filter(Boolean);
 
   const user = await User.create({
     name,
@@ -50,9 +51,14 @@ export const registerUser = async (req, res) => {
     members: memberList.length > 0 ? memberList : [name],
   });
 
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1m' });
+  const refreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
+
+  user.refreshTokens.push(refreshToken);
+  await user.save();
+
   setAuthCookie(res, token);
-  return res.json({ token, user: buildUserResponse(user) });
+  return res.json({ token, refreshToken, user: buildUserResponse(user) });
 };
 
 export const loginUser = async (req, res) => {
@@ -71,18 +77,69 @@ export const loginUser = async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials.' });
   }
 
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1m' });
+  const refreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
+
+  user.refreshTokens.push(refreshToken);
+  await user.save();
+
   setAuthCookie(res, token);
-  return res.json({ token, user: buildUserResponse(user) });
+  return res.json({ token, refreshToken, user: buildUserResponse(user) });
 };
 
-export const logoutUser = (req, res) => {
+export const logoutUser = async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (refreshToken) {
+    try {
+      const payload = jwt.verify(refreshToken, REFRESH_SECRET);
+      const user = await User.findById(payload.userId);
+      if (user) {
+        user.refreshTokens = user.refreshTokens.filter((t) => t !== refreshToken);
+        await user.save();
+      }
+    } catch (error) {
+      // Ignore invalid token on logout
+    }
+  }
+
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     sameSite: isProduction ? 'none' : 'lax',
     secure: isProduction,
   });
   res.json({ ok: true });
+};
+
+export const refreshTokens = async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'Refresh token is required.' });
+  }
+
+  try {
+    const payload = jwt.verify(refreshToken, REFRESH_SECRET);
+    const user = await User.findById(payload.userId);
+
+    if (!user || !user.refreshTokens.includes(refreshToken)) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token.' });
+    }
+
+    // Issue new access token
+    const accessToken = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '15m' });
+
+    // Rotate refresh token
+    const newRefreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
+
+    // Remove old refresh token and add new one
+    user.refreshTokens = user.refreshTokens.filter((t) => t !== refreshToken);
+    user.refreshTokens.push(newRefreshToken);
+    await user.save();
+
+    setAuthCookie(res, accessToken);
+    return res.json({ token: accessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired refresh token.' });
+  }
 };
 
 export const getMe = async (req, res) => {

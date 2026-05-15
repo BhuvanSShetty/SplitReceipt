@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "dotenv/config"
-import authRoutes from "./routes/auth.js";
-import receiptRoutes from "./routes/receipt.js";
+import authRoutes from "./routes/v1/auth.js";
+import receiptRoutes from "./routes/v1/receipt.js";
 import { connectDB } from "./config/mongo.js";
 
 
@@ -33,8 +33,8 @@ app.get("/test",(req,res)=>{
     res.send("server is up and running");
 })
 
-app.use("/api/auth", authRoutes);
-app.use("/api/receipt", receiptRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/receipt", receiptRoutes);
 
 
 const startServer = async () => {
