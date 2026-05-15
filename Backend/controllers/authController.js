@@ -51,7 +51,7 @@ export const registerUser = async (req, res) => {
     members: memberList.length > 0 ? memberList : [name],
   });
 
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1m' });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
 
   user.refreshTokens.push(refreshToken);
@@ -77,7 +77,7 @@ export const loginUser = async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials.' });
   }
 
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1m' });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
 
   user.refreshTokens.push(refreshToken);
