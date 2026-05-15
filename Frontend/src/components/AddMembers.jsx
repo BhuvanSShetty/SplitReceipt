@@ -46,7 +46,7 @@ function AddMembers({
           onClick={onNext}
           disabled={people.length === 0}
         >
-          Next: Assign items
+          Assign Items
         </button>
       </div>
     </section>

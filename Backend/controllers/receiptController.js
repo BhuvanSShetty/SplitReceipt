@@ -307,12 +307,11 @@ export const splitReceipt = async (req, res) => {
         await user.save();
       }
     }
+    res.json(result);
   } catch (error) {
     console.error('Failed to save split history:', error);
+    res.status(500).json({ error: 'Failed to process split.' });
   }
-
-
-  res.json(result);
 };
 
 export const getReceiptHistory = async (req, res) => {

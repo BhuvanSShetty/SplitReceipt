@@ -42,11 +42,20 @@ export const computeSplit = ({ receipt, people, assignments }) => {
     const totalAssignedQty = validAssignees.reduce((sum, [, qty]) => sum + qty, 0);
     const itemPrice = Number(item.price) || 0;
 
-    validAssignees.forEach(([name, qty]) => {
+    let assignedAmountSoFar = 0;
+    
+    validAssignees.forEach(([name, qty], idx) => {
       const index = personIndex.get(name);
       if (index === undefined) return;
       
-      const share = (itemPrice * qty) / totalAssignedQty;
+      let share;
+      if (idx === validAssignees.length - 1) {
+        // Last person gets the remainder to fix the penny gap!
+        share = itemPrice - assignedAmountSoFar;
+      } else {
+        share = roundCurrency((itemPrice * qty) / totalAssignedQty);
+        assignedAmountSoFar = roundCurrency(assignedAmountSoFar + share);
+      }
 
       perPerson[index].itemShares.push({
         itemId: item.id,
@@ -62,10 +71,21 @@ export const computeSplit = ({ receipt, people, assignments }) => {
   const totalService = roundCurrency(sumAmounts(serviceCharges));
   const peopleCount = perPerson.length;
 
-  perPerson.forEach((person) => {
+  let taxSoFar = 0;
+  let serviceSoFar = 0;
+
+  perPerson.forEach((person, idx) => {
     if (peopleCount > 0) {
-      person.taxShare = roundCurrency(totalTaxes / peopleCount);
-      person.serviceShare = roundCurrency(totalService / peopleCount);
+      if (idx === perPerson.length - 1) {
+        // Last person gets the remainder!
+        person.taxShare = roundCurrency(totalTaxes - taxSoFar);
+        person.serviceShare = roundCurrency(totalService - serviceSoFar);
+      } else {
+        person.taxShare = roundCurrency(totalTaxes / peopleCount);
+        person.serviceShare = roundCurrency(totalService / peopleCount);
+        taxSoFar = roundCurrency(taxSoFar + person.taxShare);
+        serviceSoFar = roundCurrency(serviceSoFar + person.serviceShare);
+      }
     }
     person.total = roundCurrency(person.subtotal + person.taxShare + person.serviceShare);
   });
