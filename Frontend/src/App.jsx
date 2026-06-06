@@ -20,64 +20,45 @@ const subscribeTokenRefresh = (cb) => {
   refreshSubscribers.push(cb);
 };
 
-const onRefreshed = (token) => {
-  refreshSubscribers.forEach((cb) => cb(token));
+const onRefreshed = () => {
+  refreshSubscribers.forEach((cb) => cb());
   refreshSubscribers = [];
 };
 
-// Helper: attach Bearer token to all API requests
 const authFetch = async (url, options = {}) => {
-  let token = localStorage.getItem('auth_token')
-  const headers = { ...(options.headers || {}) }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  let response = await fetch(url, { ...options, headers, credentials: 'include' })
+  let response = await fetch(url, { ...options, credentials: 'include' })
   
   if (response.status === 401) {
-    const refreshToken = localStorage.getItem('refresh_token')
-    if (refreshToken) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          })
-          
-          if (refreshRes.ok) {
-            const data = await refreshRes.json()
-            localStorage.setItem('auth_token', data.token)
-            localStorage.setItem('refresh_token', data.refreshToken)
-            
-            isRefreshing = false;
-            onRefreshed(data.token);
-            
-            // Retry original request with new token
-            headers['Authorization'] = `Bearer ${data.token}`
-            return fetch(url, { ...options, headers, credentials: 'include' })
-          } else {
-            isRefreshing = false;
-            // Refresh failed, logout
-            localStorage.removeItem('auth_token')
-            localStorage.removeItem('refresh_token')
-            window.location.reload()
-          }
-        } catch (err) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        
+        if (refreshRes.ok) {
           isRefreshing = false;
-          console.error('Failed to refresh token:', err)
+          onRefreshed();
+          
+          // Retry original request
+          return fetch(url, { ...options, credentials: 'include' })
+        } else {
+          isRefreshing = false;
+          // Refresh failed, logout
+          window.location.reload()
         }
-      } else {
-        // Wait for the current refresh to complete
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((newToken) => {
-            headers['Authorization'] = `Bearer ${newToken}`;
-            resolve(fetch(url, { ...options, headers, credentials: 'include' }));
-          });
-        });
+      } catch (err) {
+        isRefreshing = false;
+        console.error('Failed to refresh token:', err)
       }
+    } else {
+      // Wait for the current refresh to complete
+      return new Promise((resolve) => {
+        subscribeTokenRefresh(() => {
+          resolve(fetch(url, { ...options, credentials: 'include' }));
+        });
+      });
     }
   }
   
@@ -167,8 +148,6 @@ function App() {
       if (!response.ok) {
         throw new Error(payload.error || 'Login failed.')
       }
-      if (payload.token) localStorage.setItem('auth_token', payload.token)
-      if (payload.refreshToken) localStorage.setItem('refresh_token', payload.refreshToken)
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
       setLoginForm({ email: '', password: '' })
@@ -201,8 +180,6 @@ function App() {
       if (!response.ok) {
         throw new Error(payload.error || 'Registration failed.')
       }
-      if (payload.token) localStorage.setItem('auth_token', payload.token)
-      if (payload.refreshToken) localStorage.setItem('refresh_token', payload.refreshToken)
       setRegisterForm({ name: '', email: '', password: '', members: '' })
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
@@ -247,17 +224,12 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token')
       await authFetch(`${API_BASE}/api/v1/auth/logout`, { 
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken })
       })
     } catch (err) {
       // best effort
     }
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('refresh_token')
     setIsAuthenticated(false)
     setCurrentUser(null)
     setPeople([])

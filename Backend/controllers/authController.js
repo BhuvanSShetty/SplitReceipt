@@ -25,6 +25,10 @@ const setAuthCookie = (res, token) => {
   res.cookie(COOKIE_NAME, token, cookieOptions);
 };
 
+const setRefreshCookie = (res, token) => {
+  res.cookie('refresh_token', token, cookieOptions);
+};
+
 export const registerUser = async (req, res) => {
   const { name, email, password, members } = req.body || {};
   if (!name || !email || !password) {
@@ -58,6 +62,7 @@ export const registerUser = async (req, res) => {
   await user.save();
 
   setAuthCookie(res, token);
+  setRefreshCookie(res, refreshToken);
   return res.json({ token, refreshToken, user: buildUserResponse(user) });
 };
 
@@ -84,11 +89,15 @@ export const loginUser = async (req, res) => {
   await user.save();
 
   setAuthCookie(res, token);
+  setRefreshCookie(res, refreshToken);
   return res.json({ token, refreshToken, user: buildUserResponse(user) });
 };
 
 export const logoutUser = async (req, res) => {
-  const { refreshToken } = req.body || {};
+  const { refreshToken: bodyToken } = req.body || {};
+  const cookieToken = req.cookies?.['refresh_token'];
+  const refreshToken = bodyToken || cookieToken;
+
   if (refreshToken) {
     try {
       const payload = jwt.verify(refreshToken, REFRESH_SECRET);
@@ -107,11 +116,19 @@ export const logoutUser = async (req, res) => {
     sameSite: isProduction ? 'none' : 'lax',
     secure: isProduction,
   });
+  res.clearCookie('refresh_token', {
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+  });
   res.json({ ok: true });
 };
 
 export const refreshTokens = async (req, res) => {
-  const { refreshToken } = req.body || {};
+  const { refreshToken: bodyToken } = req.body || {};
+  const cookieToken = req.cookies?.['refresh_token'];
+  const refreshToken = bodyToken || cookieToken;
+
   if (!refreshToken) {
     return res.status(400).json({ error: 'Refresh token is required.' });
   }
@@ -136,6 +153,7 @@ export const refreshTokens = async (req, res) => {
     await user.save();
 
     setAuthCookie(res, accessToken);
+    setRefreshCookie(res, newRefreshToken);
     return res.json({ token: accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired refresh token.' });
