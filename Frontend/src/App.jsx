@@ -45,8 +45,8 @@ const authFetch = async (url, options = {}) => {
           return fetch(url, { ...options, credentials: 'include' })
         } else {
           isRefreshing = false;
-          // Refresh failed, logout
-          window.location.reload()
+          // Refresh failed, assume logged out and return original 401 response
+          return response
         }
       } catch (err) {
         isRefreshing = false;
