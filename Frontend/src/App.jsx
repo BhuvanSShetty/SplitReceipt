@@ -12,6 +12,8 @@ import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5050'
 
+const isMobileBrowser = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 // Helper variables to prevent multiple parallel refresh calls
 let isRefreshing = false;
 let refreshSubscribers = [];
@@ -26,25 +28,56 @@ const onRefreshed = () => {
 };
 
 const authFetch = async (url, options = {}) => {
-  let response = await fetch(url, { ...options, credentials: 'include' })
+  const headers = { ...(options.headers || {}) }
+  if (isMobileBrowser) {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+  }
+
+  let response = await fetch(url, { ...options, headers, credentials: 'include' })
   
   if (response.status === 401) {
+    // If mobile, only attempt refresh if we have a refresh token
+    const storedRefresh = isMobileBrowser ? localStorage.getItem('refresh_token') : null;
+    if (isMobileBrowser && !storedRefresh) {
+      return response;
+    }
+
     if (!isRefreshing) {
       isRefreshing = true;
       try {
+        const body = isMobileBrowser ? JSON.stringify({ refreshToken: storedRefresh }) : undefined;
+        const refreshHeaders = isMobileBrowser ? { 'Content-Type': 'application/json' } : {};
+
         const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
+          headers: refreshHeaders,
+          body,
         })
         
         if (refreshRes.ok) {
+          if (isMobileBrowser) {
+            const data = await refreshRes.json();
+            localStorage.setItem('auth_token', data.token);
+            localStorage.setItem('refresh_token', data.refreshToken);
+          }
           isRefreshing = false;
           onRefreshed();
           
           // Retry original request
-          return fetch(url, { ...options, credentials: 'include' })
+          if (isMobileBrowser) {
+            headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
+          }
+          return fetch(url, { ...options, headers, credentials: 'include' })
         } else {
           isRefreshing = false;
+          if (isMobileBrowser) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('refresh_token');
+          }
           // Refresh failed, assume logged out and return original 401 response
           return response
         }
@@ -56,7 +89,10 @@ const authFetch = async (url, options = {}) => {
       // Wait for the current refresh to complete
       return new Promise((resolve) => {
         subscribeTokenRefresh(() => {
-          resolve(fetch(url, { ...options, credentials: 'include' }));
+          if (isMobileBrowser) {
+            headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
+          }
+          resolve(fetch(url, { ...options, headers, credentials: 'include' }));
         });
       });
     }
@@ -148,6 +184,10 @@ function App() {
       if (!response.ok) {
         throw new Error(payload.error || 'Login failed.')
       }
+      if (isMobileBrowser && payload.token && payload.refreshToken) {
+        localStorage.setItem('auth_token', payload.token)
+        localStorage.setItem('refresh_token', payload.refreshToken)
+      }
       setPeople(payload.user.members || [])
       setCurrentUser(payload.user)
       setLoginForm({ email: '', password: '' })
@@ -179,6 +219,10 @@ function App() {
       const payload = await response.json()
       if (!response.ok) {
         throw new Error(payload.error || 'Registration failed.')
+      }
+      if (isMobileBrowser && payload.token && payload.refreshToken) {
+        localStorage.setItem('auth_token', payload.token)
+        localStorage.setItem('refresh_token', payload.refreshToken)
       }
       setRegisterForm({ name: '', email: '', password: '', members: '' })
       setPeople(payload.user.members || [])
@@ -224,11 +268,19 @@ function App() {
 
   const handleLogout = async () => {
     try {
+      const body = isMobileBrowser ? JSON.stringify({ refreshToken: localStorage.getItem('refresh_token') }) : undefined;
+      const headers = isMobileBrowser ? { 'Content-Type': 'application/json' } : {};
       await authFetch(`${API_BASE}/api/v1/auth/logout`, { 
         method: 'POST',
+        headers,
+        body
       })
     } catch (err) {
       // best effort
+    }
+    if (isMobileBrowser) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('refresh_token')
     }
     setIsAuthenticated(false)
     setCurrentUser(null)
