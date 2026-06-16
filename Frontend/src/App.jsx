@@ -14,6 +14,28 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5050'
 
 const isMobileBrowser = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+// Refresh Queue Pattern:
+//
+// Multiple requests may receive 401 simultaneously.
+//
+// First request:
+//   - sets isRefreshing = true
+//   - refreshes token
+//
+// Other requests:
+//   - subscribe and wait
+//
+// After refresh succeeds:
+//   - notify all subscribers
+//   - retry their original requests
+//
+// Prevents:
+//   RefreshA
+//   RefreshA
+//   RefreshA
+//
+// from being sent 3 times when refresh token rotation is enabled.
+
 // Helper variables to prevent multiple parallel refresh calls
 let isRefreshing = false;
 let refreshSubscribers = [];
@@ -607,6 +629,27 @@ function App() {
 
   return (
     <>
+      {/* =====================================================
+        APP FLOW CONTROLLER
+
+        step state decides which screen is rendered.
+
+        landing  -> Welcome screen
+        login    -> User login
+        register -> User registration
+        upload   -> Upload receipt & OCR analysis
+        members  -> Add/remove people
+        assign   -> Edit receipt + assign items
+        results  -> Final bill split summary
+        history  -> Previously scanned receipts
+
+        Whenever setStep() is called:
+          1. React re-renders App()
+          2. step gets new value
+          3. Matching section is displayed
+       ===================================================== */}
+
+    {/* Main application content */}
       <ParticleCanvas />
       <div className="app-shell">
         {/* Top bar */}

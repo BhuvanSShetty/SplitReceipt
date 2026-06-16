@@ -6,8 +6,7 @@ import User from '../models/User.js';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 const GROQ_BASE_URL = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
 const OCR_LANGUAGE = process.env.OCR_LANGUAGE || 'eng';
-const OCR_SPACE_ENDPOINT =
-  process.env.OCR_SPACE_ENDPOINT || 'https://api.ocr.space/parse/image';
+const OCR_SPACE_ENDPOINT = process.env.OCR_SPACE_ENDPOINT || 'https://api.ocr.space/parse/image';
 const OCR_SPACE_API_KEY = process.env.OCR_SPACE_API_KEY || process.env.OCRSPACE_API_KEY;
 
 const OCR_IGNORE_LINES = [
@@ -26,7 +25,7 @@ const OCR_IGNORE_LINES = [
 ];
 
 const extractJson = (text) => {
-  const match = text.match(/\{[\s\S]*\}/);
+  const match = text.match(/\{[\s\S]*\}/); //\s → any whitespace character \S → any non-whitespace character * Match any character 0 or more times
   if (!match) {
     throw new Error('AI response did not contain JSON.');
   }
@@ -46,12 +45,10 @@ const extractJson = (text) => {
 
 const normalizeTaxes = (parsed) => {
   if (Array.isArray(parsed?.taxes)) {
-    return parsed.taxes
-      .map((tax, index) => ({
+    return parsed.taxes.map((tax, index) => ({
         label: tax.label || `Tax ${index + 1}`,
         amount: Number(tax.amount ?? tax.value ?? 0) || 0,
-      }))
-      .filter((tax) => tax.amount > 0);
+      })).filter((tax) => tax.amount > 0);
   }
 
   if (typeof parsed?.tax === 'number') {
@@ -63,9 +60,7 @@ const normalizeTaxes = (parsed) => {
 
 const buildReceiptFromParsed = (parsed) => {
   const extraTaxes = [];
-  const items = Array.isArray(parsed?.items)
-    ? parsed.items
-      .map((item, index) => ({
+  const items = Array.isArray(parsed?.items)? parsed.items.map((item, index) => ({
         id: `item-${index + 1}`,
         name: String(item.name || `Item ${index + 1}`).trim(),
         price: Number(item.price ?? item.amount ?? 0) || 0,
@@ -112,8 +107,8 @@ const runOcr = async (imageBuffer) => {
     base64Image: `data:image/png;base64,${base64Image}`,
     isOverlayRequired: 'false',
     OCREngine: '2',
-    scale: 'true',
-    isTable: 'true',
+    scale: 'true', //Upscales image before OCR.
+    isTable: 'true', //This image contains rows and columns.
     detectOrientation: 'true',
   });
 

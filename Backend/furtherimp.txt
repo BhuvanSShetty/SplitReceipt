@@ -11,7 +11,6 @@ As your user's history grows, fetching history will slow down.
 
 Optimization: Add Indexes to your MongoDB fields that are queried often. For example, index the createdAt field in the receipts array or use a separate Receipt collection instead of embedding them all inside the User document. Embedding everything in the User document can make the document too large over time!
 4. Frontend Optimization (React)
-I noticed in the logs that you are already compressing the image before uploading (great job!).
 
 Optimization: If your ReceiptHistory list grows very large, use Virtualization (like react-window) so React only renders the receipts visible on the screen instead of all of them at once.
 5. Caching

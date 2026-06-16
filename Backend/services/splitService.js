@@ -1,21 +1,29 @@
+// Round to two decimal places and smooth out tiny floating-point quirks.
 const roundCurrency = (value) => {
   const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
   return Number.isFinite(rounded) ? rounded : 0;
 };
 
+// Add up a list of amounts, treating anything missing or invalid as zero.
 const sumAmounts = (items) =>
   items.reduce((total, item) => total + (Number(item.amount) || 0), 0);
 
+// Work out the full split for the receipt based on the selected people and
+// item assignments.
 export const computeSplit = ({ receipt, people, assignments }) => {
+  // Make sure the optional receipt fields are always arrays before we use them.
   const receiptItems = Array.isArray(receipt?.items) ? receipt.items : [];
   const taxes = Array.isArray(receipt?.taxes) ? receipt.taxes : [];
   const serviceCharges = Array.isArray(receipt?.serviceCharges)
     ? receipt.serviceCharges
     : [];
 
+  // Clean up the people list and assignment map so the rest of the logic can
+  // stay simple.
   const peopleList = Array.isArray(people) ? people : [];
   const assignmentMap = assignments || {};
 
+  // Set up one running record per person so we can fill in their shares as we go.
   const perPerson = peopleList.map((name) => ({
     name,
     itemShares: [],
@@ -26,8 +34,11 @@ export const computeSplit = ({ receipt, people, assignments }) => {
   }));
   const personIndex = new Map(perPerson.map((person, index) => [person.name, index]));
 
+  // Keep track of items that nobody was assigned to.
   const unassignedItems = [];
 
+  // Split each item between the people assigned to it.
+  // The last person gets whatever is left so the total still matches exactly.
   receiptItems.forEach((item) => {
     const itemAssignment = assignmentMap[item.id] || {};
     const validAssignees = Object.entries(itemAssignment).filter(
@@ -43,16 +54,17 @@ export const computeSplit = ({ receipt, people, assignments }) => {
     const itemPrice = Number(item.price) || 0;
 
     let assignedAmountSoFar = 0;
-    
+
     validAssignees.forEach(([name, qty], idx) => {
       const index = personIndex.get(name);
       if (index === undefined) return;
-      
+
       let share;
       if (idx === validAssignees.length - 1) {
-        // Last person gets the remainder to fix the penny gap!
+        // Give the last person the remaining amount to close any rounding gap.
         share = itemPrice - assignedAmountSoFar;
       } else {
+        // For everyone else, split the item by quantity and round the result.
         share = roundCurrency((itemPrice * qty) / totalAssignedQty);
         assignedAmountSoFar = roundCurrency(assignedAmountSoFar + share);
       }
@@ -66,6 +78,8 @@ export const computeSplit = ({ receipt, people, assignments }) => {
     });
   });
 
+  // Taxes and service charges are shared equally.
+  // The last person again takes the remainder so everything adds up cleanly.
   const subtotalTotal = perPerson.reduce((total, person) => total + person.subtotal, 0);
   const totalTaxes = roundCurrency(sumAmounts(taxes));
   const totalService = roundCurrency(sumAmounts(serviceCharges));
@@ -77,19 +91,22 @@ export const computeSplit = ({ receipt, people, assignments }) => {
   perPerson.forEach((person, idx) => {
     if (peopleCount > 0) {
       if (idx === perPerson.length - 1) {
-        // Last person gets the remainder!
+        // The final person gets the leftover tax and service amount.
         person.taxShare = roundCurrency(totalTaxes - taxSoFar);
         person.serviceShare = roundCurrency(totalService - serviceSoFar);
       } else {
+        // Everyone else gets the same rounded split.
         person.taxShare = roundCurrency(totalTaxes / peopleCount);
         person.serviceShare = roundCurrency(totalService / peopleCount);
         taxSoFar = roundCurrency(taxSoFar + person.taxShare);
         serviceSoFar = roundCurrency(serviceSoFar + person.serviceShare);
       }
     }
+    // Add everything together for the final amount each person owes.
     person.total = roundCurrency(person.subtotal + person.taxShare + person.serviceShare);
   });
 
+  // Return the full split summary for the UI or API response.
   return {
     currency: receipt?.currency || 'INR',
     perPerson,

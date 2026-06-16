@@ -7,7 +7,7 @@ export const connectDB = async () => {
         throw new Error("Missing MONGOURL in environment.");
     }
 
-    mongoose.set("strictQuery", true);
+    mongoose.set("strictQuery", true); //strictQuery to ensure only schema-defined fields are considered in database queries, improving consistency and reducing accidental query mistakes
     await mongoose.connect(mongourl, {
         serverSelectionTimeoutMS: 10000,
     });
