@@ -165,6 +165,7 @@ The cleaned text is sent to Groq's LLaMA 3.1 model, which extracts a structured 
 | **React 18** | UI framework |
 | **Vite** | Build tool and dev server |
 | **PropTypes** | Runtime type checking |
+|
 
 ---
 
