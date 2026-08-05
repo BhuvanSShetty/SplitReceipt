@@ -5,11 +5,11 @@ import "dotenv/config"
 import authRoutes from "./routes/v1/auth.js";
 import receiptRoutes from "./routes/v1/receipt.js";
 import { connectDB } from "./config/mongo.js";
+import { connectRedis } from "./config/redis.js";
 
 
 const port = process.env.PORT || 4000;
 const app = express();
-// Support comma-separated origins: "https://split.bhuvans.in,https://split-receipt-delta.vercel.app"
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
     .split(",")
     .map(o => o.trim().replace(/\/+$/, "")); // strip trailing slashes
@@ -40,6 +40,7 @@ app.use("/api/v1/receipt", receiptRoutes);
 const startServer = async () => {
     try {
         await connectDB();
+        await connectRedis();
         app.listen(port,()=>{
             console.log("server is up and running")
         })
@@ -48,5 +49,6 @@ const startServer = async () => {
         process.exit(1);
     }
 };
+
 
 startServer();

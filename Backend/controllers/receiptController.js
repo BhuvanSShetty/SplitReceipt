@@ -1,7 +1,11 @@
 import OpenAI from 'openai';
 import sharp from 'sharp';
+import crypto from 'crypto';
 import { computeSplit } from '../services/splitService.js';
 import User from '../models/User.js';
+import { getCache, setCache } from '../config/redis.js';
+
+
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 const GROQ_BASE_URL = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
@@ -246,13 +250,25 @@ const extractRegexItems = (rawText) => {
 };
 
 const parseWithGroq = async (rawText) => {
+  // Clean the OCR text before sending it to the model.
+  const cleanedText = sanitizeOcrText(rawText);
+
+  // Generate a unique hash for the cleaned OCR text to use as the cache key
+  const hash = crypto.createHash('sha256').update(cleanedText).digest('hex');
+  const cacheKey = `receipt:parsed:${hash}`;
+
+  // Check Redis cache first
+  const cachedResult = await getCache(cacheKey);
+  if (cachedResult) {
+    console.log('[Redis] Cache hit: retrieved parsed LLM response from memory');
+    return cachedResult;
+  }
+
   // Create the Groq-compatible OpenAI client.
   const client = new OpenAI({
     apiKey: process.env.GROQ_API_KEY,
     baseURL: GROQ_BASE_URL,
   });
-  // Clean the OCR text before sending it to the model.
-  const cleanedText = sanitizeOcrText(rawText);
   // Pull out deterministic item candidates from the OCR text.
   const regexItems = extractRegexItems(cleanedText);
   // Ask Groq to normalize the OCR text into structured JSON.
@@ -280,7 +296,12 @@ const parseWithGroq = async (rawText) => {
 
   // Extract the JSON payload from the model response.
   const content = response.choices?.[0]?.message?.content || '';
-  return extractJson(content);
+  const parsedJson = extractJson(content);
+
+  // Store in cache for future lookup (expires in 7 days)
+  await setCache(cacheKey, parsedJson);
+  
+  return parsedJson;
 };
 
 export const analyzeReceipt = async (req, res) => {
